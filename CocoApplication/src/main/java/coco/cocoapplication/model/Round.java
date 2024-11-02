@@ -4,5 +4,5 @@ import java.util.List;
 
 public class Round {
     public int day;
-    public List<Move> movements;
+    public List<Movement> movements;
 }

@@ -1,6 +1,6 @@
 package coco.cocoapplication.model;
 
-public class Move {
+public class Movement {
     public String connectionId;
     public int amount;
 }
