@@ -57,6 +57,8 @@
                 });
         }
     </script>
+    <script src="https://unpkg.com/d3@6"></script>
+    <script src="//unpkg.com/force-graph"></script>
 </head>
 <body>
 <div>
@@ -81,5 +83,144 @@
 
     <button onclick="endSession()">Stop Session</button>
 </div>
+
+<div id="graph"></div>
+
+<script>
+    fetch('data.json').then(res => res.json()).then(data => {
+        const elem = document.getElementById('graph');
+        let highlightedNode = null; // Track the currently highlighted node
+        let highlightedLink = null; // Track the currently highlighted link
+
+        function getColorByType(type) {
+            if (type === "refinery") return "red"; // Red for Refinery
+            else if (type === "tank") return "orange"; // Orange for Tank
+            else if (type === "customer") return "lime"; // Lime for Customer
+            return "#ccc"; // Default color for other types
+        }
+
+        function getPowerByType(type) {
+            if (type === "refinery") return 100; // Power for Refinery
+            else if (type === "tank") return 100; // Power for Tank
+            else if (type === "customer") return 100; // Power for Customer
+            return 100; // Default power for unknown types
+        }
+
+        function getColorGradient(context, node) {
+            if (node.type === "refinery" && isFinite(node.x) && isFinite(node.y)) {
+                const desc = node.description;
+                const match = desc.match(/(\d+)\/(\d+)/); // Parse "number/another number" format
+
+                let percentage = 0;
+                if (match && match.length === 3) {
+                    const current = parseInt(match[1]);
+                    const max = parseInt(match[2]);
+                    percentage = Math.min(1, current / max); // Normalize to a value between 0 and 1
+                }
+                
+                // Create gradient from bottom to top for refinery
+                const gradient = context.createLinearGradient(node.x, node.y + 10, node.x, node.y - 10); // Swap coordinates for downward gradient
+                gradient.addColorStop(0, "red");
+                gradient.addColorStop(percentage, "red");
+                gradient.addColorStop(percentage, "black");
+                gradient.addColorStop(1, "black");
+                return gradient;
+
+            } else if (node.type === "tank" && isFinite(node.x) && isFinite(node.y)) {
+                const desc = node.description;
+                const match = desc.match(/(\d+)\/(\d+)/); // Parse "number/another number" format
+
+                let percentage = 0;
+                if (match && match.length === 3) {
+                    const current = parseInt(match[1]);
+                    const max = parseInt(match[2]);
+                    percentage = Math.min(1, current / max); // Normalize to a value between 0 and 1
+                }
+                
+                // Create gradient from bottom to top for tank
+                const gradient = context.createLinearGradient(node.x, node.y + 10, node.x, node.y - 10); // Swap coordinates for downward gradient
+                gradient.addColorStop(0, "lime");
+                gradient.addColorStop(percentage, "lime");
+                gradient.addColorStop(percentage, "black");
+                gradient.addColorStop(1, "black");
+                return gradient;
+            }
+
+            // Default color for "customer" nodes
+            return "lightblue"; // Solid light blue for customer nodes
+        }
+
+        // Position adjustment for initial layout
+        const nodeLevels = {};
+        data.nodes.forEach(node => {
+            nodeLevels[node.level] = (nodeLevels[node.level] || 0) + 1; // Count nodes at each level
+        });
+
+        data.nodes.forEach(node => {
+            const levelIndex = node.level; // Assuming you have a level property
+            const index = nodeLevels[levelIndex] - 1; // Get the last index
+            node.y = levelIndex * 100 + index * 50; // Adjust the vertical spacing
+        });
+
+        const Graph = ForceGraph()(elem)
+            .backgroundColor('#19192e')
+            .nodeRelSize(6)
+            .nodeCanvasObject((node, ctx) => {
+                // Set fill style to gradient or highlight color
+                ctx.fillStyle = highlightedNode && highlightedNode.id === node.id ? 'yellow' : getColorGradient(ctx, node);
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, 6, 0, 2 * Math.PI, false);
+                ctx.fill();
+            })
+            .linkDirectionalParticleWidth(link => {
+                // Increase particle width if link is connected to highlighted node or selected link
+                return highlightedLink && link.source.id === highlightedLink.source.id && link.target.id === highlightedLink.target.id ||
+                       highlightedNode && (link.source.id === highlightedNode.id || link.target.id === highlightedNode.id)
+                    ? 4
+                    : 0;
+            })
+            .linkDirectionalParticles(link => {
+                return highlightedLink && link.source.id === highlightedLink.source.id && link.target.id === highlightedLink.target.id ||
+                       highlightedNode && (link.source.id === highlightedNode.id || link.target.id === highlightedNode.id)
+                    ? 4
+                    : 0;
+            })
+            .linkDirectionalParticleSpeed(0.001) // Set a consistent, slower particle speed
+            .linkColor(link => {
+                if (highlightedLink && link.source.id === highlightedLink.source.id && link.target.id === highlightedLink.target.id) {
+                    return 'yellow'; // Highlight color for selected link
+                }
+                if (highlightedNode && (link.source.id === highlightedNode.id || link.target.id === highlightedNode.id)) {
+                    return 'yellow'; // Highlight color for links connected to the hovered node
+                }
+                return 'rgba(255,255,255,0.5)'; // Default color
+            })
+            .nodeLabel(node => `${node.user}: ${node.description}`)
+            .graphData(data)
+            .dagMode('lr') // Use left-right directed acyclic graph layout
+            .dagLevelDistance(100) // Increase this value for more vertical spacing
+            .d3Force('charge', d3.forceManyBody().strength(-100)) // More repulsion between nodes
+            .d3Force('link', d3.forceLink().distance(150)) // Increase link distance
+            .onNodeHover(node => {
+                highlightedNode = node; // Set the currently hovered node
+                highlightedLink = null; // Clear highlighted link
+                Graph.graphData(data); // Update graph to reflect new highlights
+            })
+            .onLinkHover(link => {
+                highlightedLink = link; // Set the currently hovered link
+                highlightedNode = null; // Clear highlighted node
+                Graph.graphData(data); // Update graph to reflect new highlights
+            });
+
+        // Reset highlights when the mouse leaves the graph area
+        elem.addEventListener('mouseleave', () => {
+            highlightedNode = null;
+            highlightedLink = null; // Clear the highlighted link
+            Graph.graphData(data); // Update to reset colors
+        });
+    });
+</script>
+
+
 </body>
 </html>
