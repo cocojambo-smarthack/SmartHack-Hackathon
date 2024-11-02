@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Start Session</title>
+    <script>
+        function startSession() {
+            fetch('/start-session', {
+                method: 'POST',
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Success:', data);
+                    document.getElementById('session-id').innerText = 'Session ID: ' + data.id;
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function endSession() {
+            const sessionId = document.getElementById('session-id').innerText.split(' ')[2];
+            fetch('/end-session', {
+                method: 'POST',
+                headers: {
+                    'SESSION-ID': sessionId
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Success:', data);
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function playRound() {
+            const name = document.getElementById('name').value;
+            const sessionId = document.getElementById('session-id').innerText.split(' ')[2];
+            fetch('/play-round', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'SESSION-ID': sessionId
+                },
+                body: name,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Success:', data);
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        }
+    </script>
+</head>
+<body>
+<div>
+    <button onclick="startSession()">Start Session</button>
+    <div id="session-id"></div>
+</div>
+<br><br><br>
+    <textarea id="name" style="width: 900px; height: 200px; font-size: 16px; resize: both;">
+{
+    "day": 0,
+    "movements": [
+        {
+        "connectionId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "amount": 0
+        }
+    ]
+}
+    </textarea>
+    <br>
+    <button onclick="playRound()">Play Round</button>
+    <br><br>
+
+    <button onclick="endSession()">Stop Session</button>
+</div>
+</body>
+</html>
