@@ -4,6 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Start Session</title>
+    <style>
+    #button-container {
+    display: flex;
+    flex-direction: column; /* Stack buttons vertically */
+    width: 100%; /* Full width of the container */
+    height: 300px; /* Fixed height for the button area (adjust as needed) */
+}
+
+#button-container button {
+    height: 100%;
+    width: 100%; /* Full width for each button */
+    background-color: #4CAF50; /* Optional button background color */
+    color: white; /* Text color */
+    border: none; /* Remove border */
+    cursor: pointer; /* Pointer cursor on hover */
+}
+
+#button-container button:hover {
+    background-color: #45a049; /* Darker background on hover */
+}
+       body { margin: 0; }
+    .sidenav {
+        size:20px;
+        height: 100%; /* Start with a height of 0 */
+        width: 0; /* Full width */
+        position: fixed;
+        z-index: 3;
+        top: 0; /* Fixed to the top */
+        left: 0;
+        background-color: rgba(30, 30, 30, 0.9);
+        overflow-y: hidden; /* Hide overflow in vertical direction */
+        transition: 0.5s; /* Transition for height */
+    }
+
+    .sidenav a {
+        padding: 8px 16px; /* Adjust padding for horizontal spacing */
+        text-decoration: none;
+        font-size: 25px;
+        color: #818181;
+        display: block; /* Ensure links stack vertically */
+        transition: 0.3s;
+    }
+
+    .sidenav a:hover {
+        color: #f1f1f1;
+    }
+
+
+    @media screen and (max-height: 450px) {
+        .sidenav {padding-top: 15px;}
+        .sidenav a {font-size: 18px;}
+    }
+
+        /* Create three equal columns that floats next to each other */
+    .column {
+    float: left;
+    height: 33.33%;
+    width: 100%; /* Should be removed. Only for demonstration */
+    }
+
+    /* Clear floats after the columns */
+    .row:after {
+    content: "";
+    display: table;
+    clear: both;
+    }
+    </style>
     <script>
         function startSession() {
             fetch('/start-session', {
@@ -61,12 +128,22 @@
     <script src="//unpkg.com/force-graph"></script>
 </head>
 <body>
-<div>
-    <button onclick="startSession()">Start Session</button>
-    <div id="session-id"></div>
-</div>
-<br><br><br>
-    <textarea id="name" style="width: 900px; height: 200px; font-size: 16px; resize: both;">
+
+    <span style="font-size:30px;cursor:pointer;position:fixed;z-index: 2;color: white;" onclick="openNav()">&#9776;</span>
+    <div id="graph"></div>
+    <div id="mySidenav" class="sidenav">
+        <div class="row" style="height: 100%">
+            <div class="column" style="background-color:white;height: auto; width: 100%;">
+                <div id="button-container">
+                    <button class="closebtn" onclick="closeNav()" style="font-size:20px;">Close</button>
+                    <button onclick="startSession()" style="font-size:20px;">Start Session</button>
+                    <button onclick="playRound()" style="font-size:20px;">Play Round</button>
+                    <button onclick="endSession()" style="font-size:20px;">Stop Session</button>
+                    <div id="session-id" style="padding-top:5px;padding-bottom: 5px; text-align: center;font-size:20px;background-color: #4CAF50;color: white;">Session ID: --Start Session--</div>
+                </div>
+            </div>
+            <div class="column" style="background-color:#bbb;height: calc(100% - 300px);"> <!-- Adjust the height based on the button area -->
+                <textarea id="name" style="width: 98.85%; height: 100%; font-size: 16px; resize: none; overflow: hidden;">
 {
     "day": 0,
     "movements": [
@@ -75,152 +152,152 @@
         "amount": 0
         }
     ]
-}
-    </textarea>
-    <br>
-    <button onclick="playRound()">Play Round</button>
-    <br><br>
+}</textarea>
+            </div>
+        </div>
+    </div>
 
-    <button onclick="endSession()">Stop Session</button>
-</div>
-
-<div id="graph"></div>
-
-<script>
-    fetch('data.json').then(res => res.json()).then(data => {
-        const elem = document.getElementById('graph');
-        let highlightedNode = null; // Track the currently highlighted node
-        let highlightedLink = null; // Track the currently highlighted link
-
-        function getColorByType(type) {
-            if (type === "refinery") return "red"; // Red for Refinery
-            else if (type === "tank") return "orange"; // Orange for Tank
-            else if (type === "customer") return "lime"; // Lime for Customer
-            return "#ccc"; // Default color for other types
+    <script>
+        function openNav() {
+            document.getElementById("mySidenav").style.width = "33%"; // Set height to show the navbar
         }
 
-        function getPowerByType(type) {
-            if (type === "refinery") return 100; // Power for Refinery
-            else if (type === "tank") return 100; // Power for Tank
-            else if (type === "customer") return 100; // Power for Customer
-            return 100; // Default power for unknown types
+        function closeNav() {
+            document.getElementById("mySidenav").style.width = "0"; // Reset height to hide the navbar
         }
 
-        function getColorGradient(context, node) {
-            if (node.type === "refinery" && isFinite(node.x) && isFinite(node.y)) {
-                const desc = node.description;
-                const match = desc.match(/(\d+)\/(\d+)/); // Parse "number/another number" format
+        fetch('data.json').then(res => res.json()).then(data => {
+            const elem = document.getElementById('graph');
+            let highlightedNode = null; // Track the currently highlighted node
+            let highlightedLink = null; // Track the currently highlighted link
 
-                let percentage = 0;
-                if (match && match.length === 3) {
-                    const current = parseInt(match[1]);
-                    const max = parseInt(match[2]);
-                    percentage = Math.min(1, current / max); // Normalize to a value between 0 and 1
-                }
-                
-                // Create gradient from bottom to top for refinery
-                const gradient = context.createLinearGradient(node.x, node.y + 10, node.x, node.y - 10); // Swap coordinates for downward gradient
-                gradient.addColorStop(0, "red");
-                gradient.addColorStop(percentage, "red");
-                gradient.addColorStop(percentage, "black");
-                gradient.addColorStop(1, "black");
-                return gradient;
-
-            } else if (node.type === "tank" && isFinite(node.x) && isFinite(node.y)) {
-                const desc = node.description;
-                const match = desc.match(/(\d+)\/(\d+)/); // Parse "number/another number" format
-
-                let percentage = 0;
-                if (match && match.length === 3) {
-                    const current = parseInt(match[1]);
-                    const max = parseInt(match[2]);
-                    percentage = Math.min(1, current / max); // Normalize to a value between 0 and 1
-                }
-                
-                // Create gradient from bottom to top for tank
-                const gradient = context.createLinearGradient(node.x, node.y + 10, node.x, node.y - 10); // Swap coordinates for downward gradient
-                gradient.addColorStop(0, "lime");
-                gradient.addColorStop(percentage, "lime");
-                gradient.addColorStop(percentage, "black");
-                gradient.addColorStop(1, "black");
-                return gradient;
+            function getColorByType(type) {
+                if (type === "refinery") return "red"; // Red for Refinery
+                else if (type === "tank") return "orange"; // Orange for Tank
+                else if (type === "customer") return "lime"; // Lime for Customer
+                return "#ccc"; // Default color for other types
             }
 
-            // Default color for "customer" nodes
-            return "lightblue"; // Solid light blue for customer nodes
-        }
+            function getPowerByType(type) {
+                if (type === "refinery") return 100; // Power for Refinery
+                else if (type === "tank") return 100; // Power for Tank
+                else if (type === "customer") return 100; // Power for Customer
+                return 100; // Default power for unknown types
+            }
 
-        // Position adjustment for initial layout
-        const nodeLevels = {};
-        data.nodes.forEach(node => {
-            nodeLevels[node.level] = (nodeLevels[node.level] || 0) + 1; // Count nodes at each level
-        });
+            function getColorGradient(context, node) {
+                if (node.type === "refinery" && isFinite(node.x) && isFinite(node.y)) {
+                    const desc = node.description;
+                    const match = desc.match(/(\d+)\/(\d+)/); // Parse "number/another number" format
 
-        data.nodes.forEach(node => {
-            const levelIndex = node.level; // Assuming you have a level property
-            const index = nodeLevels[levelIndex] - 1; // Get the last index
-            node.y = levelIndex * 100 + index * 50; // Adjust the vertical spacing
-        });
+                    let percentage = 0;
+                    if (match && match.length === 3) {
+                        const current = parseInt(match[1]);
+                        const max = parseInt(match[2]);
+                        percentage = Math.min(1, current / max); // Normalize to a value between 0 and 1
+                    }
+                    
+                    // Create gradient from bottom to top for refinery
+                    const gradient = context.createLinearGradient(node.x, node.y + 10, node.x, node.y - 10); // Swap coordinates for downward gradient
+                    gradient.addColorStop(0, "red");
+                    gradient.addColorStop(percentage, "red");
+                    gradient.addColorStop(percentage, "black");
+                    gradient.addColorStop(1, "black");
+                    return gradient;
 
-        const Graph = ForceGraph()(elem)
-            .backgroundColor('#19192e')
-            .nodeRelSize(6)
-            .nodeCanvasObject((node, ctx) => {
-                // Set fill style to gradient or highlight color
-                ctx.fillStyle = highlightedNode && highlightedNode.id === node.id ? 'yellow' : getColorGradient(ctx, node);
-                ctx.beginPath();
-                ctx.arc(node.x, node.y, 6, 0, 2 * Math.PI, false);
-                ctx.fill();
-            })
-            .linkDirectionalParticleWidth(link => {
-                // Increase particle width if link is connected to highlighted node or selected link
-                return highlightedLink && link.source.id === highlightedLink.source.id && link.target.id === highlightedLink.target.id ||
-                       highlightedNode && (link.source.id === highlightedNode.id || link.target.id === highlightedNode.id)
-                    ? 4
-                    : 0;
-            })
-            .linkDirectionalParticles(link => {
-                return highlightedLink && link.source.id === highlightedLink.source.id && link.target.id === highlightedLink.target.id ||
-                       highlightedNode && (link.source.id === highlightedNode.id || link.target.id === highlightedNode.id)
-                    ? 4
-                    : 0;
-            })
-            .linkDirectionalParticleSpeed(0.001) // Set a consistent, slower particle speed
-            .linkColor(link => {
-                if (highlightedLink && link.source.id === highlightedLink.source.id && link.target.id === highlightedLink.target.id) {
-                    return 'yellow'; // Highlight color for selected link
+                } else if (node.type === "tank" && isFinite(node.x) && isFinite(node.y)) {
+                    const desc = node.description;
+                    const match = desc.match(/(\d+)\/(\d+)/); // Parse "number/another number" format
+
+                    let percentage = 0;
+                    if (match && match.length === 3) {
+                        const current = parseInt(match[1]);
+                        const max = parseInt(match[2]);
+                        percentage = Math.min(1, current / max); // Normalize to a value between 0 and 1
+                    }
+                    
+                    // Create gradient from bottom to top for tank
+                    const gradient = context.createLinearGradient(node.x, node.y + 10, node.x, node.y - 10); // Swap coordinates for downward gradient
+                    gradient.addColorStop(0, "lime");
+                    gradient.addColorStop(percentage, "lime");
+                    gradient.addColorStop(percentage, "black");
+                    gradient.addColorStop(1, "black");
+                    return gradient;
                 }
-                if (highlightedNode && (link.source.id === highlightedNode.id || link.target.id === highlightedNode.id)) {
-                    return 'yellow'; // Highlight color for links connected to the hovered node
-                }
-                return 'rgba(255,255,255,0.5)'; // Default color
-            })
-            .nodeLabel(node => `${node.user}: ${node.description}`)
-            .graphData(data)
-            .dagMode('lr') // Use left-right directed acyclic graph layout
-            .dagLevelDistance(100) // Increase this value for more vertical spacing
-            .d3Force('charge', d3.forceManyBody().strength(-100)) // More repulsion between nodes
-            .d3Force('link', d3.forceLink().distance(150)) // Increase link distance
-            .onNodeHover(node => {
-                highlightedNode = node; // Set the currently hovered node
-                highlightedLink = null; // Clear highlighted link
-                Graph.graphData(data); // Update graph to reflect new highlights
-            })
-            .onLinkHover(link => {
-                highlightedLink = link; // Set the currently hovered link
-                highlightedNode = null; // Clear highlighted node
-                Graph.graphData(data); // Update graph to reflect new highlights
+
+                // Default color for "customer" nodes
+                return "lightblue"; // Solid light blue for customer nodes
+            }
+
+            // Position adjustment for initial layout
+            const nodeLevels = {};
+            data.nodes.forEach(node => {
+                nodeLevels[node.level] = (nodeLevels[node.level] || 0) + 1; // Count nodes at each level
             });
 
-        // Reset highlights when the mouse leaves the graph area
-        elem.addEventListener('mouseleave', () => {
-            highlightedNode = null;
-            highlightedLink = null; // Clear the highlighted link
-            Graph.graphData(data); // Update to reset colors
+            data.nodes.forEach(node => {
+                const levelIndex = node.level; // Assuming you have a level property
+                const index = nodeLevels[levelIndex] - 1; // Get the last index
+                node.y = levelIndex * 100 + index * 50; // Adjust the vertical spacing
+            });
+
+            const Graph = ForceGraph()(elem)
+                .backgroundColor('#101020')
+                .nodeRelSize(6)
+                .nodeCanvasObject((node, ctx) => {
+                    // Set fill style to gradient or highlight color
+                    ctx.fillStyle = highlightedNode && highlightedNode.id === node.id ? 'yellow' : getColorGradient(ctx, node);
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, 6, 0, 2 * Math.PI, false);
+                    ctx.fill();
+                })
+                .linkDirectionalParticleWidth(link => {
+                    // Increase particle width if link is connected to highlighted node or selected link
+                    return highlightedLink && link.source.id === highlightedLink.source.id && link.target.id === highlightedLink.target.id ||
+                        highlightedNode && (link.source.id === highlightedNode.id || link.target.id === highlightedNode.id)
+                        ? 4
+                        : 0;
+                })
+                .linkDirectionalParticles(link => {
+                    return highlightedLink && link.source.id === highlightedLink.source.id && link.target.id === highlightedLink.target.id ||
+                        highlightedNode && (link.source.id === highlightedNode.id || link.target.id === highlightedNode.id)
+                        ? 4
+                        : 0;
+                })
+                .linkDirectionalParticleSpeed(0.001) // Set a consistent, slower particle speed
+                .linkColor(link => {
+                    if (highlightedLink && link.source.id === highlightedLink.source.id && link.target.id === highlightedLink.target.id) {
+                        return 'yellow'; // Highlight color for selected link
+                    }
+                    if (highlightedNode && (link.source.id === highlightedNode.id || link.target.id === highlightedNode.id)) {
+                        return 'yellow'; // Highlight color for links connected to the hovered node
+                    }
+                    return 'rgba(200,200,200,0.6)'; // Default color
+                })
+                .nodeLabel(node => `${node.user}: ${node.description}`)
+                .graphData(data)
+                .dagMode('lr') // Use left-right directed acyclic graph layout
+                .dagLevelDistance(100) // Increase this value for more vertical spacing
+                .d3Force('charge', d3.forceManyBody().strength(-100)) // More repulsion between nodes
+                .d3Force('link', d3.forceLink().distance(150)) // Increase link distance
+                .onNodeHover(node => {
+                    highlightedNode = node; // Set the currently hovered node
+                    highlightedLink = null; // Clear highlighted link
+                    Graph.graphData(data); // Update graph to reflect new highlights
+                })
+                .onLinkHover(link => {
+                    highlightedLink = link; // Set the currently hovered link
+                    highlightedNode = null; // Clear highlighted node
+                    Graph.graphData(data); // Update graph to reflect new highlights
+                });
+
+            // Reset highlights when the mouse leaves the graph area
+            elem.addEventListener('mouseleave', () => {
+                highlightedNode = null;
+                highlightedLink = null; // Clear the highlighted link
+                Graph.graphData(data); // Update to reset colors
+            });
         });
-    });
-</script>
-
-
+    </script>
 </body>
 </html>
