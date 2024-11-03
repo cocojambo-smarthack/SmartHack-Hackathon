@@ -123,6 +123,7 @@
                     console.error('Error:', error);
                 });
         }
+        
     </script>
     <script src="https://unpkg.com/d3@6"></script>
     <script src="//unpkg.com/force-graph"></script>
@@ -135,7 +136,8 @@
         <div class="row" style="height: 100%">
             <div class="column" style="background-color:white;height: auto; width: 100%;">
                 <div id="button-container">
-                    <button class="closebtn" onclick="closeNav()" style="font-size:20px;">Close</button>
+                    <div style="padding-top:5px;padding-bottom: 5px; text-align: center;font-size:30px;background-color: white;color: black;">CocoJumbo System Monitor</div>
+                    <button class="closebtn" onclick="closeNav()" style="font-size:20px;">Close Navbar</button>
                     <button onclick="startSession()" style="font-size:20px;">Start Session</button>
                     <button onclick="playRound()" style="font-size:20px;">Play Round</button>
                     <button onclick="endSession()" style="font-size:20px;">Stop Session</button>
@@ -242,7 +244,7 @@
             });
 
             const Graph = ForceGraph()(elem)
-                .backgroundColor('#101020')
+                .backgroundColor('#171729')
                 .nodeRelSize(6)
                 .nodeCanvasObject((node, ctx) => {
                     // Set fill style to gradient or highlight color
@@ -278,8 +280,8 @@
                 .graphData(data)
                 .dagMode('lr') // Use left-right directed acyclic graph layout
                 .dagLevelDistance(100) // Increase this value for more vertical spacing
-                .d3Force('charge', d3.forceManyBody().strength(-100)) // More repulsion between nodes
-                .d3Force('link', d3.forceLink().distance(150)) // Increase link distance
+                //.d3Force('charge', d3.forceManyBody().strength(-100)) // More repulsion between nodes
+                //.d3Force('link', d3.forceLink().distance(150)) // Increase link distance
                 .onNodeHover(node => {
                     highlightedNode = node; // Set the currently hovered node
                     highlightedLink = null; // Clear highlighted link
