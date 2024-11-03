@@ -9,7 +9,7 @@
     display: flex;
     flex-direction: column; /* Stack buttons vertically */
     width: 100%; /* Full width of the container */
-    height: 300px; /* Fixed height for the button area (adjust as needed) */
+    height: 100%; /* Fixed height for the button area (adjust as needed) */
 }
 
 #button-container button {
@@ -60,7 +60,7 @@
         /* Create three equal columns that floats next to each other */
     .column {
     float: left;
-    height: 33.33%;
+    height: 50%;
     width: 100%; /* Should be removed. Only for demonstration */
     }
 
@@ -134,17 +134,18 @@
     <div id="graph"></div>
     <div id="mySidenav" class="sidenav">
         <div class="row" style="height: 100%">
-            <div class="column" style="background-color:white;height: auto; width: 100%;">
+            <div class="column" style="background-color:white;height: 50%; width: 100%;">
                 <div id="button-container">
                     <div style="padding-top:5px;padding-bottom: 5px; text-align: center;font-size:30px;background-color: white;color: black;">CocoJumbo System Monitor</div>
                     <button class="closebtn" onclick="closeNav()" style="font-size:20px;">Close Navbar</button>
                     <button onclick="startSession()" style="font-size:20px;">Start Session</button>
                     <button onclick="playRound()" style="font-size:20px;">Play Round</button>
+                    <button onclick="playRound()" style="font-size:20px;">Next Step</button>
                     <button onclick="endSession()" style="font-size:20px;">Stop Session</button>
                     <div id="session-id" style="padding-top:5px;padding-bottom: 5px; text-align: center;font-size:20px;background-color: #4CAF50;color: white;">Session ID: --Start Session--</div>
                 </div>
             </div>
-            <div class="column" style="background-color:#bbb;height: calc(100% - 300px);"> <!-- Adjust the height based on the button area -->
+            <div class="column" style="background-color:#bbb;height: 50%;"> <!-- Adjust the height based on the button area -->
                 <textarea id="name" style="width: 98.85%; height: 100%; font-size: 16px; resize: none; overflow: hidden;">
 {
     "day": 0,
@@ -252,6 +253,32 @@
                     ctx.beginPath();
                     ctx.arc(node.x, node.y, 6, 0, 2 * Math.PI, false);
                     ctx.fill();
+
+                    // Extract current and max values from the node's description
+                    const desc = node.description;
+                    const match = desc.match(/(-?\d+)\/(-?\d+)/); // Matches "current/max" format with optional negative signs
+
+                    let currentValue = 0;
+                    let maxValue = 0;
+
+                    if (match && match.length === 3) {
+                        currentValue = parseInt(match[1]);
+                        maxValue = parseInt(match[2]);
+                    }
+
+                    console.log(currentValue);
+
+                    // Check conditions for highlighting with a circle based on current mechanics
+                    if (currentValue < 0 || currentValue > maxValue) {
+                        ctx.lineWidth = 2; // Thickness of the outer circle
+                        if(currentValue < 0)
+                            ctx.strokeStyle = 'orange'; // Color of the outer circle for invalid values
+                        if(currentValue > maxValue)
+                            ctx.strokeStyle = 'blue'; // Color of the outer circle for invalid values
+                        ctx.beginPath();
+                        ctx.arc(node.x, node.y, 6, 0, 2 * Math.PI, false); // Outer circle
+                        ctx.stroke(); // Draw the outer circle
+                    }
                 })
                 .linkDirectionalParticleWidth(link => {
                     // Increase particle width if link is connected to highlighted node or selected link
@@ -280,8 +307,12 @@
                 .graphData(data)
                 .dagMode('lr') // Use left-right directed acyclic graph layout
                 .dagLevelDistance(100) // Increase this value for more vertical spacing
+
+                .d3Force('charge', null) // Disable node repulsion
+                .d3Force('link', null) // Disable link forces
                 //.d3Force('charge', d3.forceManyBody().strength(-100)) // More repulsion between nodes
                 //.d3Force('link', d3.forceLink().distance(150)) // Increase link distance
+
                 .onNodeHover(node => {
                     highlightedNode = node; // Set the currently hovered node
                     highlightedLink = null; // Clear highlighted link
