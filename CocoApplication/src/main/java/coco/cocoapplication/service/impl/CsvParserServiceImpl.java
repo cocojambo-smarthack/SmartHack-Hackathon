@@ -29,6 +29,9 @@ public class CsvParserServiceImpl implements CsvParserService {
                 for (Field field : fields) {
                     field.setAccessible(true);
                     String fieldName = field.getName();
+                    if (fieldName.equals("transits")) {
+                        continue;
+                    }
                     String fieldValue = csvRecord.get(fieldName);
                     if (field.getType().equals(String.class)) {
                         field.set(obj, fieldValue);

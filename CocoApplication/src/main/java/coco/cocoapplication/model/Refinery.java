@@ -13,4 +13,12 @@ public class Refinery {
     public double production_co2;
     public int initial_stock;
     public String node_type;
+
+    public void subtractStock(int amount) {
+        initial_stock -= amount;
+    }
+
+    public void addStock(int amount) {
+        initial_stock += amount;
+    }
 }

@@ -1,6 +1,8 @@
 package coco.cocoapplication.service.impl;
 
 import coco.cocoapplication.helper.Constants;
+import coco.cocoapplication.helper.JsonToRoundResponseConverter;
+import coco.cocoapplication.model.RoundResponse;
 import coco.cocoapplication.model.Session;
 import coco.cocoapplication.service.ApiService;
 import org.slf4j.Logger;
@@ -30,6 +32,17 @@ public class ApiServiceImpl implements ApiService {
         this.restTemplate = restTemplate;
     }
 
+    private String sendRequest(String url, HttpEntity<String> entity) {
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            logger.info("Response body: {}", response.getBody());
+            return response.getBody();
+        } catch (RestClientException e) {
+            logger.error("Failed to send request", e);
+            return null;
+        }
+    }
+
     @Override
     public Session startSession() {
         String url = baseUrl + Constants.SESSION_START;
@@ -38,14 +51,11 @@ public class ApiServiceImpl implements ApiService {
         headers.set("API-KEY", apiKey);
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
-        try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
-            logger.info("Response body: {}", response.getBody());
-            return new Session(response.getBody());
-        } catch (RestClientException e) {
-            logger.error("Failed to start session", e);
+        String response = sendRequest(url, entity);
+        if (response == null)
             return null;
-        }
+
+        return new Session(response);
     }
 
     @Override
@@ -56,19 +66,11 @@ public class ApiServiceImpl implements ApiService {
         headers.set("API-KEY", apiKey);
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
-        try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
-            logger.info("Successfully ended session");
-            return response.getBody();
-        } catch (RestClientException e) {
-            logger.error("Failed to end session", e);
-        }
-
-        return null;
+        return sendRequest(url, entity);
     }
 
     @Override
-    public void playRound(String sessionId, String body) {
+    public RoundResponse playRound(String sessionId, String body) {
         String url = baseUrl + Constants.PLAY_ROUND;
 
         HttpHeaders headers = new HttpHeaders();
@@ -77,12 +79,6 @@ public class ApiServiceImpl implements ApiService {
         headers.set("Content-Type", "application/json");
 
         HttpEntity<String> entity = new HttpEntity<>(body, headers);
-
-        try {
-            restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
-            logger.info("Successfully played round");
-        } catch (RestClientException e) {
-            logger.error("Failed to play round", e);
-        }
+        return JsonToRoundResponseConverter.convertJsonToRoundResponse(sendRequest(url, entity));
     }
 }
