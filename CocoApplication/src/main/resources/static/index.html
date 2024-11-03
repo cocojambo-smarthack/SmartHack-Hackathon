@@ -58,14 +58,28 @@
     }
     </style>
     <script>
+        var round = 0;
         function startSession() {
             fetch('/start-session', {
+                method: 'POST',
+            })
+                .then(response => response.text())
+                .then(data => {
+                    console.log('Success:', data);
+                    document.getElementById('session-id').innerText = 'Session ID: ' + data;
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function playGame() {
+            fetch('/play-game', {
                 method: 'POST',
             })
                 .then(response => response.json())
                 .then(data => {
                     console.log('Success:', data);
-                    document.getElementById('session-id').innerText = 'Session ID: ' + data.id;
                 })
                 .catch((error) => {
                     console.error('Error:', error);
@@ -90,24 +104,28 @@
         }
 
         function playRound() {
-            const name = document.getElementById('name').value;
-            const sessionId = document.getElementById('session-id').innerText.split(' ')[2];
-            fetch('/play-round', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'SESSION-ID': sessionId
-                },
-                body: name,
-            })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Success:', data);
+            let sessionId = document.getElementById('session-id').innerText.split(' ')[2];
+            let body = "";
+            if (round === 0) {
+                let body = "{\n" +
+                    "  \"day\": 0,\n" +
+                    "  \"movements\": []\n" +
+                    "}";
+            } else {
+                fetch(`/get-round-moves?round=${round}`, {
+                    method: 'GET'
                 })
-                .catch((error) => {
-                    console.error('Error:', error);
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Success:', data);
+                        body = data;
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                    });
+            }
+
+            round++;
         }
         
     </script>
@@ -120,12 +138,12 @@
     <div id="graph"></div>
     <div id="mySidenav" class="sidenav">
         <div class="row" style="height: 100%">
-            <div class="column" style="background-color:white;height: 70%; width: 100%;">
+            <div class="column" style="background-color:white;height: 100%; width: 100%;">
                 <div id="button-container">
                     <div style="padding-top:5px;padding-bottom: 5px; text-align: center;font-size:30px;background-color: white;color: black;">CocoJumbo System Monitor</div>
                     <button class="closebtn" onclick="closeNav()" style="font-size:20px;">Close Navbar</button>
                     <button onclick="startSession()" style="font-size:20px;">Start Session</button>
-                    <button onclick="playRound()" style="font-size:20px;">Play Round</button>
+                    <button onclick="playGame()" style="font-size:20px;">Play Game</button>
                     <button onclick="playRound()" style="font-size:20px;">Next Step</button>
                     <button onclick="endSession()" style="font-size:20px;">Stop Session</button>
                     <div id="session-id" style="padding-top:5px;padding-bottom: 5px; text-align: center;font-size:20px;background-color: #4CAF50;color: white;">Session ID: --Start Session--</div>
@@ -140,16 +158,6 @@
                 </div>
             </div>
             <div class="column" style="background-color:#bbb;height: 50%;"> <!-- Adjust the height based on the button area -->
-                <textarea id="name" style="width: 98.85%; height: 100%; font-size: 16px; resize: none; overflow: hidden;">
-{
-    "day": 0,
-    "movements": [
-        {
-        "connectionId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-        "amount": 0
-        }
-    ]
-}</textarea>
             </div>
         </div>
     </div>
@@ -260,7 +268,7 @@
                         maxValue = parseInt(match[2]);
                     }
 
-                    console.log(currentValue);
+                    // console.log(currentValue);
 
                     // Check conditions for highlighting with a circle based on current mechanics
                     if (currentValue < 0 || currentValue > maxValue) {

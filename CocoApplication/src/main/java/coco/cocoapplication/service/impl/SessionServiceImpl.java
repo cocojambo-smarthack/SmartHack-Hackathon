@@ -4,7 +4,7 @@ import coco.cocoapplication.helper.Constants;
 import coco.cocoapplication.helper.JsonToRoundResponseConverter;
 import coco.cocoapplication.model.RoundResponse;
 import coco.cocoapplication.model.Session;
-import coco.cocoapplication.service.ApiService;
+import coco.cocoapplication.service.SessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,10 +17,11 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 @Service
-public class ApiServiceImpl implements ApiService {
+public class SessionServiceImpl implements SessionService {
 
-    private static final Logger logger = LoggerFactory.getLogger(ApiServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(SessionServiceImpl.class);
     private final RestTemplate restTemplate;
+    public static Session session;
 
     @Value("${external.api.base-url}")
     private String baseUrl;
@@ -28,8 +29,12 @@ public class ApiServiceImpl implements ApiService {
     @Value("${external.api.key}")
     private String apiKey;
 
-    public ApiServiceImpl(RestTemplate restTemplate) {
+    public SessionServiceImpl(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
+    }
+
+    public Session getSession() {
+        return session;
     }
 
     private String sendRequest(String url, HttpEntity<String> entity) {
@@ -55,7 +60,8 @@ public class ApiServiceImpl implements ApiService {
         if (response == null)
             return null;
 
-        return new Session(response);
+        session = new Session(response);
+        return session;
     }
 
     @Override

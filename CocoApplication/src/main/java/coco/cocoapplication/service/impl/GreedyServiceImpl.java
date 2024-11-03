@@ -2,7 +2,7 @@ package coco.cocoapplication.service.impl;
 
 import coco.cocoapplication.helper.Pair;
 import coco.cocoapplication.model.*;
-import coco.cocoapplication.service.ApiService;
+import coco.cocoapplication.service.SessionService;
 import coco.cocoapplication.service.GreedyService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,11 +17,13 @@ import java.util.*;
 public class GreedyServiceImpl implements GreedyService {
     final static Logger logger = LoggerFactory.getLogger(GreedyServiceImpl.class);
 
-    private final ApiService apiService;
+    private final SessionService sessionService;
     public List<Refinery> refineries;
     public List<Tank> tanks;
     public List<Customer> customers;
     public List<Connection> connections;
+
+    public List<Round> rounds = new ArrayList<>();
 
     // Create a priority queue to store the demands sorted by the ratio of demand to distance
     private int currentDay = 0;
@@ -73,28 +75,36 @@ public class GreedyServiceImpl implements GreedyService {
     }
 
     @Autowired
-    public GreedyServiceImpl(ApiServiceImpl apiService) {
-        this.apiService = apiService;
-    }
-
-    private RoundResponse sendRoundAndReturnAnswer(Round round, String sessionId) throws JsonProcessingException{
-        ObjectMapper objectMapper = new ObjectMapper();
-        String jsonString = objectMapper.writeValueAsString(round);
-        logger.info("Sending round: {}", jsonString);
-        return apiService.playRound(sessionId, jsonString);
+    public GreedyServiceImpl(SessionServiceImpl apiService) {
+        this.sessionService = apiService;
     }
 
     @Override
-    public void startRandom() throws JsonProcessingException {
+    public String getRoundMoves(int round) {
+        return rounds.get(round).toString();
+    }
+
+    private RoundResponse sendRoundAndReturnAnswer(Round round, String sessionId) throws JsonProcessingException{
+        rounds.add(round);
+        ObjectMapper objectMapper = new ObjectMapper();
+        String jsonString = objectMapper.writeValueAsString(round);
+        logger.info("Sending round: {}", jsonString);
+        return sessionService.playRound(sessionId, jsonString);
+    }
+
+    @Override
+    public void precalculate() {
         breadthFirstSearch();
         createLevelBuckets();
-
         // Show for each level the nodes
         for (Map.Entry<Integer, List<String>> entry : levelBuckets.entrySet()) {
             logger.info("Level {}: {}", entry.getKey(), entry.getValue());
         }
+    }
 
-        Session session = apiService.startSession();
+    @Override
+    public void startRandom() throws JsonProcessingException {
+        Session session = sessionService.getSession();
         logger.info("Started session with id {}", session.id);
 
         // Send a round with no movements
@@ -102,20 +112,24 @@ public class GreedyServiceImpl implements GreedyService {
         round.day = 0; round.movements = new ArrayList<>();
         RoundResponse response = sendRoundAndReturnAnswer(round, session.id);
 
-        for (int currentDay = 1; currentDay < 42; currentDay++) {
+        for (currentDay = 1; currentDay < 42; currentDay++) {
             updateConnections();
             updateClientDemands(response.demand);
 
             round.day = currentDay;
-            round.movements = attemptToSatisfyDemands(currentDay, session);
-            round.movements.addAll(updateRefineries());
+            round.movements = attemptToSatisfyDemands(currentDay);
+
             round.movements.addAll(updateTanks());
+            round.movements.addAll(updateRefineries());
 
             response = sendRoundAndReturnAnswer(round, session.id);
         }
 
+        for (Connection connection : connections)
+            assert connection.transits.isEmpty();
+
         // End the session and log the result
-        String answer = apiService.endSession();
+        String answer = sessionService.endSession();
         logger.info("Session ended with result: {}", answer);
     }
 
@@ -166,13 +180,15 @@ public class GreedyServiceImpl implements GreedyService {
                 int tank_output = 0;
                 List<Connection> connections = getConnectionsTankTank(nodeId);
                 for (Connection connection : connections) {
+                    if (connection.lead_time_days + currentDay > 42)
+                        continue;
                     if (tank_output >= tank.max_output)
                         break;
                     if (fullCapacity(connection))
                         continue;
-                    if (nodeLevel.get(connection.to_id) < level) {
-                        continue;
-                    }
+//                    if (nodeLevel.get(connection.to_id) < level) {
+//                        continue;
+//                    }
                     // TODO: check max output and max input
                     Tank dumpTank = getTank(connection.to_id);
 
@@ -214,6 +230,9 @@ public class GreedyServiceImpl implements GreedyService {
                 return 0;
             });
             for (Connection connection : connections) {
+                if (connection.lead_time_days + currentDay > 42) {
+                    continue;
+                }
 //                if (fullCapacity(connection))
 //                    continue;
                 Tank dumpTank = getTank(connection.to_id);
@@ -238,7 +257,7 @@ public class GreedyServiceImpl implements GreedyService {
         return movements;
     }
 
-    private List<Movement> attemptToSatisfyDemands(int currentDay, Session session) {
+    private List<Movement> attemptToSatisfyDemands(int currentDay) {
         List<Movement> movements = new ArrayList<>();
         for (int i = 0; i < demands.size(); i++) {
             Demand demand = demands.poll();
@@ -256,9 +275,9 @@ public class GreedyServiceImpl implements GreedyService {
                 return Integer.compare(t2.initial_stock, t1.initial_stock);
             });
             for (Connection connection : connections) {
-//                if (connection.lead_time_days + currentDay < demand.startDay) {
-//                    continue;
-//                }
+                if (connection.lead_time_days + currentDay > 42) {
+                    continue;
+                }
 
                 Tank tank = getTank(connection.from_id);
 

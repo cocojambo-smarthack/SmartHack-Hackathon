@@ -32,7 +32,7 @@ public class CocoApplication {
             greedyService.customers = csvParserService.parseCsv("customers.csv", Customer.class);
             greedyService.connections = csvParserService.parseCsv("connections.csv", Connection.class);
 
-            greedyService.startRandom();
+            greedyService.precalculate();
         };
     }
 }
